@@ -177,7 +177,8 @@ def get_full_path(dir_path: Path, root: Path) -> str:
     relative = dir_path.relative_to(root)
     if relative == Path('.'):
         return f"{root.name}/"
-    return f"{root.name}/{relative}/"
+    # 使用 as_posix() 确保使用正斜杠，跨平台兼容
+    return f"{root.name}/{relative.as_posix()}/"
 
 
 def update_progress_header(root: Path, processing_dir: str):
@@ -783,16 +784,97 @@ def generate_modules_incremental(root: Path | None = None, batch_size: int = 5):
     # 移除进度头
     remove_progress_header(root)
 
-    print("[OK] Generated modules.md successfully!")
+    # ==================== 验证步骤：确保所有目录都有描述 ====================
+    validate_and_fix_missing_descriptions(root)
+    # ========================================================================
+
+    print("\n[OK] Generated modules.md successfully!")
     print(f"  Total directories: {len(directories)}")
     print(f"  Leaf directories analyzed: {len(leaf_dirs)}")
     print(f"  Parent directories propagated: {len(directories) - len(leaf_dirs)}")
 
 # ============================================================================
+# Validation and Fix Functions
+# ============================================================================
+
+def validate_and_fix_missing_descriptions(root: Path):
+    """
+    验证并修复缺失的目录描述。
+
+    Args:
+        root: 项目根目录
+    """
+    modules_md_path = root / "modules.md"
+    if not modules_md_path.exists():
+        print("[ERROR] modules.md not found!")
+        return
+
+    print("=" * 60)
+    print("Validating module descriptions...")
+    print("=" * 60)
+
+    # 1. 读取所有目录
+    directories = find_all_directories(root)
+    print(f"Found {len(directories)} directories in filesystem.")
+
+    # 2. 解析现有的描述
+    existing_descriptions = parse_existing_descriptions(root)
+    print(f"Found {len(existing_descriptions)} descriptions in modules.md.")
+
+    # 3. 找出缺失或无效的描述
+    missing_or_invalid = []
+    for dir_path in directories:
+        full_path = get_full_path(dir_path, root)
+        desc = existing_descriptions.get(full_path, '')
+
+        # 检查：不存在、为空、或仍为占位符
+        if not desc or desc == '[待分析]':
+            missing_or_invalid.append(dir_path)
+
+    if not missing_or_invalid:
+        print("[OK] All directories have valid descriptions!")
+        return
+
+    # 4. 修复缺失的描述
+    print(f"\nFound {len(missing_or_invalid)} directories without valid descriptions.")
+    print("Fixing missing descriptions...\n")
+
+    updates = []
+    batch_size = 5
+
+    for dir_path in missing_or_invalid:
+        try:
+            # 分析目录代码
+            summary = analyze_directory_code(dir_path)
+            updates.append((dir_path, summary))
+
+            # 批量更新
+            if len(updates) >= batch_size:
+                batch_update_descriptions(root, updates)
+                print(f"  Fixed {len(updates)} missing descriptions")
+                updates.clear()
+
+        except Exception as e:
+            print(f"  [WARNING] Failed to analyze {dir_path}: {e}")
+            # 添加默认描述
+            dir_display = dir_path.name
+            if len(dir_display) > 10:
+                dir_display = dir_display[:10]
+            updates.append((dir_path, f"{dir_display}相关功能模块"))
+
+    # 更新剩余的
+    if updates:
+        batch_update_descriptions(root, updates)
+        print(f"  Fixed {len(updates)} missing descriptions")
+
+    print("\n[OK] Validation and fix completed!")
+
+
+# ============================================================================
 # Interactive Mode Functions
 # ============================================================================
 
-def backup_existing_modules(root: Path) -> Path:
+def backup_existing_modules(root: Path) -> Path | None:
     """
     备份现有的 modules.md 文件。
     """
@@ -1000,6 +1082,12 @@ def main():
             # 执行两阶段增量生成
             root = Path(sys.argv[2]) if len(sys.argv) > 2 else Path.cwd()
             interactive_mode(root)
+
+        elif sys.argv[1] == "--validate":
+            # 验证并修复缺失的描述
+            root = Path(sys.argv[2]) if len(sys.argv) > 2 else Path.cwd()
+            validate_and_fix_missing_descriptions(root)
+
         else:
             # 仅分析并打印（原有行为）
             root = Path(sys.argv[1])

@@ -9,6 +9,8 @@ description: 'Generate a tree-structured module overview with functional summari
 
 Analyzes a codebase directory structure and generates a hierarchical modules.md document with tree view and concise functional summaries for each module.
 
+**Key Feature**: Automatic validation ensures every directory has a functional description, with no missing or placeholder entries.
+
 ## Workflow
 
 ### 阶段 1：生成骨架 (Skeleton Generation)
@@ -133,11 +135,54 @@ auth/
    - 更新进度头
    - 继续直到根目录
 
-#### 2.4 完成
+#### 2.4 验证与修复 (Validation & Fix)
+
+**目标**：确保所有目录都有有效的功能描述，不会遗漏。
+
+##### 验证步骤
+
+1. **检查完整性**：
+   - 对比文件系统中的所有目录与 modules.md 中的描述
+   - 找出缺失、为空或仍标记为 `[待分析]` 的目录
+
+2. **自动修复**：
+   - 对每个缺失描述的目录执行 `analyze_directory_code()`
+   - 基于目录名、文件名和代码内容生成功能描述
+   - 批量更新 modules.md（每 5 个目录更新一次）
+
+3. **错误处理**：
+   - 单个目录分析失败不影响其他目录
+   - 失败时使用目录名生成默认描述（如 `{dirname}相关功能模块`）
+
+##### 验证命令
+
+也可以单独使用验证命令检查现有文档：
+
+```bash
+python scripts/analyze_tree.py --validate /path/to/project
+```
+
+输出示例：
+```
+============================================================
+Validating module descriptions...
+============================================================
+Found 150 directories in filesystem.
+Found 148 descriptions in modules.md.
+
+Found 2 directories without valid descriptions.
+Fixing missing descriptions...
+
+  Fixed 2 missing descriptions
+
+[OK] Validation and fix completed!
+```
+
+#### 2.5 完成
 
 1. 移除进度头（`<!-- Last Update... -->`）
-2. 确认所有目录都有描述
-3. 报告完成状态
+2. 运行自动验证步骤（确保所有目录都有描述）
+3. 报告完成状态（包含验证结果）
 
 ## Constraints
 
@@ -148,7 +193,10 @@ auth/
 - **Batch update**: Update modules.md every 5 directories analyzed
 - **Progress tracking**: Always update progress header during analysis
 - **Full paths**: Use complete paths (e.g., `myproject/src/api/`) in Module Descriptions section
+- **Path format**: Use forward slashes (`/`) for all paths, ensure cross-platform compatibility
 - **Propagate timing**: Only propagate summary upward after all children are complete
+- **Validation required**: Always run validation step after generation to ensure all directories have descriptions
+- **No missing descriptions**: Final modules.md must have a valid description for every directory (no `[待分析]` placeholders)
 
 ## When to Use
 
@@ -169,5 +217,94 @@ Use this skill ONLY when:
 - For large files, focus on: imports, class definitions, main functions, comments
 - If directory has no code files, mark as "Configuration" or "Empty"
 - Use complete paths (e.g., `myproject/src/api/`) in Module Descriptions section
+- Use forward slashes (`/`) for all paths to ensure cross-platform compatibility
 - Update modules.md every 5 directories analyzed for progress tracking
 - Remove progress header when analysis is complete
+- **Always run validation after generation** to ensure completeness
+- **Use `--validate` command** to check and fix existing modules.md files
+- **No directory should be left as `[待分析]`** in the final output
+
+## Usage
+
+This skill uses a Python script (`scripts/analyze_tree.py`) for automation.
+
+### Generate modules.md (with automatic validation)
+
+```bash
+# Generate for current directory
+python scripts/analyze_tree.py --generate .
+
+# Generate for specific directory
+python scripts/analyze_tree.py --generate /path/to/project
+```
+
+The `--generate` command:
+1. Creates initial skeleton with all directories
+2. Analyzes leaf directories and generates descriptions
+3. Propagates summaries upward to parent directories
+4. **Automatically validates** and fixes any missing descriptions
+
+### Validate existing modules.md
+
+```bash
+# Check and fix missing descriptions
+python scripts/analyze_tree.py --validate /path/to/project
+```
+
+The `--validate` command:
+- Scans filesystem directories
+- Compares with existing modules.md descriptions
+- Identifies missing or placeholder (`[待分析]`) descriptions
+- Automatically analyzes and fixes missing entries
+
+### Interactive options
+
+When running `--generate` on an existing `modules.md`, you'll be prompted:
+
+1. **Full overwrite**: Backup existing file and regenerate from scratch
+2. **Continue unanalyzed**: Only process directories marked as `[待分析]`
+3. **Check new directories**: Only process directories not in existing list
+
+### Expected output
+
+```
+Generating modules.md for: .
+
+============================================================
+Phase 1: Creating skeleton...
+============================================================
+Created: modules.md
+  Found 150 directories
+
+Phase 1 completed. Found 150 directories, 80 leaf dirs.
+
+============================================================
+Phase 2: Incremental population...
+============================================================
+
+Analyzing 80 leaf directories...
+  [5/80] Updated 5 leaf directories
+  ...
+  [80/80] Updated 5 leaf directories
+
+Propagating summaries upward...
+  Depth 5: processing 20 directories...
+  ...
+  Depth 0: processing 1 directories...
+
+============================================================
+Phase 2 completed!
+============================================================
+
+============================================================
+Validating module descriptions...
+============================================================
+Found 150 directories in filesystem.
+Found 150 descriptions in modules.md.
+[OK] All directories have valid descriptions!
+
+[OK] Generated modules.md successfully!
+  Total directories: 150
+  Leaf directories analyzed: 80
+  Parent directories propagated: 70
+```
