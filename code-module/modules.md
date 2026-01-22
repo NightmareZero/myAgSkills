@@ -2,14 +2,13 @@
 
 ## Directory Structure
 
-code-module
-├── assets
-├── references
-└── scripts
+assets
+references
+scripts
 
 ## Module Descriptions
 
-code-module/ - 配置文件或资源目录
-code-module/assets/ - 配置文件或资源目录
-code-module/references/ - 配置文件或资源目录
-code-module/scripts/ - 配置文件或资源目录
+/ - 相关模块
+/assets/ - 静态资源目录
+/references/ - 参考资源目录
+/scripts/ - 脚本与工具

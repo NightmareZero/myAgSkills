@@ -92,21 +92,26 @@ def build_tree_string(directories: List[Path], root: Path) -> str:
 
     # Convert to markdown tree
     lines = []
-    lines.append(root.name)
 
-    def add_to_tree(structure: Dict, prefix: str = "", is_last: bool = True):
+    def add_to_tree(structure: Dict, prefix: str = "", is_top_level: bool = False):
         items = list(structure.items())
         for i, (name, children) in enumerate(items):
             is_item_last = (i == len(items) - 1)
-            connector = "└── " if is_item_last else "├── "
-            lines.append(f"{prefix}{connector}{name}")
+
+            if is_top_level:
+                # Top-level items: no prefix
+                lines.append(name)
+            else:
+                # Nested items: use connector
+                connector = "└── " if is_item_last else "├── "
+                lines.append(f"{prefix}{connector}{name}")
 
             # Update prefix for children
             if children:
                 child_prefix = prefix + ("    " if is_item_last else "│   ")
-                add_to_tree(children, child_prefix, is_item_last)
+                add_to_tree(children, child_prefix, is_top_level=False)
 
-    add_to_tree(tree)
+    add_to_tree(tree, is_top_level=True)
 
     return "\n".join(lines)
 
@@ -361,6 +366,234 @@ def create_skeleton_file(root: Path):
     print(f"  Found {len(find_all_directories(root))} directories")
 
 
+def analyze_by_path(dir_path: Path, root: Path) -> str:
+    """
+    基于完整路径的启发式规则推断目录功能。
+
+    Args:
+        dir_path: 目录路径
+        root: 项目根目录
+
+    Returns:
+        功能描述字符串，如果无法推断则返回 None
+    """
+    # 确保路径是绝对路径
+    dir_path = dir_path.resolve()
+    root = root.resolve()
+
+    # 获取相对路径（如 platform/service/manage/hr/）
+    try:
+        relative = dir_path.relative_to(root)
+    except ValueError:
+        # dir_path 不是 root 的子路径，使用目录名
+        path_parts = [dir_path.name]
+    else:
+        path_parts = list(relative.parts)
+
+    path_str = '/'.join(path_parts).lower()
+
+    dir_name = dir_path.name.lower()
+
+    # =============== 第一层：顶级目录 ===============
+    if len(path_parts) == 1:
+        if dir_name in ['api', 'apis']:
+            return 'API接口定义层'
+        elif dir_name in ['service', 'services']:
+            return '业务服务层'
+        elif dir_name in ['platform', 'core']:
+            return '平台核心模块'
+        elif any(k in dir_name for k in ['common', 'shared', 'util']):
+            return '公共工具与组件'
+        elif dir_name in ['config', 'conf', 'settings']:
+            return '系统配置管理'
+        elif dir_name in ['test', 'tests']:
+            return '测试用例'
+        elif dir_name in ['doc', 'docs', 'docs']:
+            return '文档目录'
+        elif dir_name in ['run', 'dist', 'build', 'bin']:
+            return '运行时目录'
+        elif dir_name in ['tmp', 'temp', 'cache']:
+            return '临时文件目录'
+        elif dir_name in ['vendor', 'third_party']:
+            return '第三方依赖'
+        elif dir_name in ['scripts', 'script']:
+            return '脚本与工具'
+        elif dir_name in ['modules', 'mod']:
+            return '功能模块集'
+        elif dir_name in ['assets']:
+            return '静态资源目录'
+        elif dir_name in ['references', 'ref', 'refs']:
+            return '参考资源目录'
+        elif dir_name in ['lib', 'libs']:
+            return '依赖库目录'
+        elif dir_name in ['include', 'includes']:
+            return '头文件目录'
+        elif dir_name in ['src', 'source']:
+            return '源代码目录'
+
+    # =============== 第二层及更深层：路径模式匹配 ===============
+
+    # API 相关
+    if any(p in path_parts for p in ['api', 'apis', 'rpc']):
+        if 'plat' in path_parts:
+            return '平台API接口'
+        elif 'agent' in path_parts:
+            return 'Agent API接口'
+        else:
+            return 'RESTful API接口'
+
+    # 服务层
+    if 'service' in path_parts:
+        if 'manage' in path_parts:
+            return '管理服务'
+        elif 'dashboard' in path_parts:
+            return '仪表盘服务'
+        elif 'agent' in path_parts:
+            return 'Agent服务'
+        elif 'public' in path_parts:
+            return '公共服务'
+        else:
+            return '业务服务'
+
+    # 业务模块
+    if 'hr' in path_parts:
+        return '人力资源管理模块'
+    elif 'enterprise' in path_parts:
+        return '企业管理模块'
+    elif 'pay' in path_parts:
+        return '支付服务模块'
+    elif 'mail' in path_parts:
+        return '邮件服务模块'
+    elif 'sms' in path_parts:
+            return '短信服务模块'
+    elif 'video' in path_parts:
+        return '视频处理模块'
+    elif 'file' in path_parts:
+        return '文件管理模块'
+    elif 'user' in path_parts:
+        return '用户管理模块'
+    elif 'auth' in path_parts:
+        return '认证授权模块'
+    elif 'ai' in path_parts:
+        return 'AI服务模块'
+    elif 'search' in path_parts:
+        return '搜索服务模块'
+    elif 'recruitment' in path_parts:
+        return '招聘管理模块'
+    elif 'resume' in path_parts:
+        return '简历管理模块'
+    elif 'course' in path_parts:
+        return '课程管理模块'
+    elif 'tex' in path_parts:
+        return '考试测评模块'
+    elif 'workorder' in path_parts:
+        return '工单管理模块'
+    elif 'notice' in path_parts:
+        return '消息通知模块'
+    elif 'invoice' in path_parts:
+        return '发票管理模块'
+    elif 'contract' in path_parts:
+        return '合同管理模块'
+    elif 'order' in path_parts:
+        return '订单管理模块'
+    elif 'product' in path_parts:
+        return '产品管理模块'
+    elif 'resource' in path_parts:
+        return '资源管理模块'
+    elif 'cluster' in path_parts:
+        return '集群管理模块'
+    elif 'container' in path_parts:
+        return '容器管理模块'
+    elif 'gpu' in path_parts:
+        return 'GPU资源模块'
+    elif 'hardware' in path_parts:
+        return '硬件管理模块'
+    elif 'network' in path_parts:
+        return '网络管理模块'
+    elif 'log' in path_parts or 'logger' in path_parts:
+        return '日志管理模块'
+    elif 'cache' in path_parts or 'redis' in path_parts:
+        return '缓存服务模块'
+    elif 'db' in path_parts or 'database' in path_parts:
+        return '数据库模块'
+    elif 'mq' in path_parts or 'queue' in path_parts:
+        return '消息队列模块'
+    elif 'event' in path_parts:
+        return '事件处理模块'
+    elif 'driver' in path_parts:
+        return '驱动适配层'
+    elif 'adapter' in path_parts:
+        return '适配器层'
+    elif 'middleware' in path_parts:
+        return '中间件层'
+    elif 'controller' in path_parts or 'handler' in path_parts:
+        return '控制器层'
+    elif 'model' in path_parts or 'entity' in path_parts:
+        return '数据模型层'
+    elif 'common' in path_parts or 'util' in path_parts:
+        return '通用工具模块'
+    elif 'security' in path_parts:
+        return '安全防护模块'
+    elif 'test' in path_parts:
+        return '测试模块'
+
+    # =============== 目录名本身的关键词匹配 ===============
+    if any(k in dir_name for k in ['api', 'service', 'controller', 'model', 'handler', 'adapter', 'driver', 'middleware', 'auth', 'config', 'util', 'common']):
+        if 'api' in dir_name:
+            return 'API接口'
+        elif 'service' in dir_name:
+            return '业务服务'
+        elif 'controller' in dir_name or 'handler' in dir_name:
+            return '控制器'
+        elif 'model' in dir_name:
+            return '数据模型'
+        elif 'adapter' in dir_name:
+            return '适配器'
+        elif 'driver' in dir_name:
+            return '驱动器'
+        elif 'middleware' in dir_name:
+            return '中间件'
+        elif 'auth' in dir_name:
+            return '认证授权'
+        elif 'config' in dir_name:
+            return '配置管理'
+        elif 'util' in dir_name or 'common' in dir_name:
+            return '工具函数'
+
+    # =============== 第三层：子目录名称模式 ===============
+    if dir_name.startswith('api_') or dir_name.endswith('_api'):
+        return 'API接口'
+    elif dir_name.startswith('service_') or dir_name.endswith('_service'):
+        return '业务服务'
+    elif dir_name.startswith('controller') or dir_name.endswith('_controller'):
+        return '控制器'
+    elif dir_name.startswith('model') or dir_name.endswith('_model'):
+        return '数据模型'
+    elif dir_name.startswith('handler') or dir_name.endswith('_handler'):
+        return '请求处理器'
+    elif dir_name.startswith('adapter') or dir_name.endswith('_adapter'):
+        return '适配器'
+    elif dir_name.startswith('driver') or dir_name.endswith('_driver'):
+        return '驱动器'
+
+    # =============== 常见目录名 ===============
+    if dir_name in ['conf', 'config', 'configs']:
+        return '配置文件目录'
+    elif dir_name in ['certs', 'certificates']:
+        return '证书文件目录'
+    elif dir_name in ['example', 'examples', 'demo']:
+        return '示例代码'
+    elif dir_name in ['test', 'tests', 'spec']:
+        return '测试用例'
+    elif dir_name in ['doc', 'docs', 'readme']:
+        return '文档目录'
+    elif dir_name in ['log', 'logs']:
+        return '日志目录'
+
+    # 无法推断，返回特殊标记提示需要代码分析
+    return "NEED_CODE_ANALYSIS"
+
+
 def analyze_directory_code(dir_path: Path) -> str:
     """
     分析目录中的代码并生成功能描述（中文）。
@@ -371,11 +604,84 @@ def analyze_directory_code(dir_path: Path) -> str:
     Returns:
         功能描述（10~50 个中文字符）
     """
-    code_files = get_code_files(dir_path)
+    # 先基于路径推断
+    import os
+    root = Path.cwd()
+    desc = analyze_by_path(dir_path, root)
 
-    # 排除脚本自身
-    script_name = 'analyze_tree.py'
-    code_files = [f for f in code_files if f.name != script_name]
+    # 如果返回特殊标记，说明需要代码分析
+    if desc == "NEED_CODE_ANALYSIS":
+        # 需要读取代码文件进行深入分析
+        code_files = get_code_files(dir_path)
+
+        if not code_files:
+            return "配置文件或资源目录"
+
+        # 读取代码文件
+        all_content = ""
+        file_names = [f.name for f in code_files]
+        for code_file in code_files[:5]:  # 最多读取 5 个文件
+            try:
+                content = code_file.read_text(encoding='utf-8', errors='ignore')
+                all_content += content + "\n"
+            except Exception:
+                continue
+
+        if not all_content:
+            return "无有效代码文件"
+
+        content_lower = all_content.lower()
+        dir_name = dir_path.name.lower()
+
+        # 简化的关键词映射
+        keywords_map = {
+            'auth': '认证授权模块',
+            'config': '配置管理',
+            'util': '工具函数',
+            'api': 'API接口',
+            'model': '数据模型',
+            'service': '业务服务',
+            'test': '测试用例',
+            'controller': '控制器',
+            'middleware': '中间件',
+            'client': '客户端',
+            'server': '服务器',
+            'cache': '缓存',
+            'log': '日志',
+            'security': '安全模块',
+            'event': '事件处理',
+            'task': '任务调度',
+            'socket': '通信模块',
+            'storage': '存储模块',
+            'driver': '驱动器',
+            'adapter': '适配器',
+        }
+
+        # 1. 基于目录名匹配
+        for key, desc_str in keywords_map.items():
+            if key in dir_name:
+                return desc_str
+
+        # 2. 基于文件名匹配
+        for file_name in file_names:
+            file_lower = file_name.lower()
+            for key, desc_str in keywords_map.items():
+                if key in file_lower:
+                    return desc_str
+
+        # 3. 基于代码内容匹配
+        for key, desc_str in keywords_map.items():
+            if key in content_lower:
+                return desc_str
+
+        # 4. 默认：使用目录名生成描述
+        dir_display = dir_path.name
+        if len(dir_display) > 10:
+            dir_display = dir_display[:10]
+        return f'{dir_display}相关模块'
+
+    # 返回路径推断结果
+    return desc
 
     if not code_files:
         return "配置文件或资源目录"
@@ -393,170 +699,62 @@ def analyze_directory_code(dir_path: Path) -> str:
     if not all_content:
         return "无有效代码文件"
 
-    # 基于目录名和内容分析
-    dir_name = dir_path.name.lower()
     content_lower = all_content.lower()
+    dir_name = dir_path.name.lower()
 
-    # 扩展关键词映射（中文描述）
-    category_map = {
-        'auth': {
-            'keywords': ['auth', 'login', 'register', 'session', 'token', 'signin', 'signup', 'password', 'jwt', 'oauth'],
-            'description': '用户认证与权限管理模块'
-        },
-        'config': {
-            'keywords': ['config', 'setting', 'env', 'environment', 'constant'],
-            'description': '系统配置与环境变量管理'
-        },
-        'util': {
-            'keywords': ['util', 'helper', 'common', 'shared', 'tool', 'format', 'date', 'time', 'string'],
-            'description': '通用工具函数与辅助类库'
-        },
-        'api': {
-            'keywords': ['api', 'route', 'endpoint', 'handler', 'controller', 'request', 'response'],
-            'description': 'RESTful API 接口与路由处理'
-        },
-        'model': {
-            'keywords': ['model', 'schema', 'entity', 'domain', 'dto', 'pojo'],
-            'description': '数据模型与实体定义'
-        },
-        'service': {
-            'keywords': ['service', 'business', 'logic', 'manager', 'facade'],
-            'description': '业务逻辑处理与服务层'
-        },
-        'db': {
-            'keywords': ['db', 'database', 'sql', 'query', 'repository', 'dao', 'migrate', 'migration'],
-            'description': '数据库访问与持久化操作'
-        },
-        'test': {
-            'keywords': ['test', 'spec', 'mock', 'fixture', 'assert'],
-            'description': '单元测试与集成测试套件'
-        },
-        'view': {
-            'keywords': ['view', 'template', 'render', 'html', 'component', 'ui', 'page'],
-            'description': '视图层与前端组件'
-        },
-        'controller': {
-            'keywords': ['controller', 'action', 'dispatch'],
-            'description': '控制器与请求分发处理'
-        },
-        'middleware': {
-            'keywords': ['middleware', 'interceptor', 'filter'],
-            'description': '中间件与请求拦截器'
-        },
-        'client': {
-            'keywords': ['client', 'http', 'fetch', 'request', 'axios'],
-            'description': 'HTTP 客户端与请求封装'
-        },
-        'server': {
-            'keywords': ['server', 'listen', 'port', 'host'],
-            'description': '服务器启动与监听配置'
-        },
-        'cache': {
-            'keywords': ['cache', 'redis', 'memcached', 'session'],
-            'description': '缓存与会话管理'
-        },
-        'log': {
-            'keywords': ['log', 'logger', 'monitor', 'track'],
-            'description': '日志记录与监控追踪'
-        },
-        'validate': {
-            'keywords': ['validate', 'validator', 'check', 'verify'],
-            'description': '数据校验与格式验证'
-        },
-        'exception': {
-            'keywords': ['exception', 'error', 'catch', 'throw', 'handle'],
-            'description': '异常捕获与错误处理'
-        },
-        'event': {
-            'keywords': ['event', 'emit', 'trigger', 'listener', 'observer', 'pubsub'],
-            'description': '事件驱动与消息发布订阅'
-        },
-        'task': {
-            'keywords': ['task', 'job', 'schedule', 'cron', 'queue', 'worker'],
-            'description': '异步任务与定时调度'
-        },
-        'socket': {
-            'keywords': ['socket', 'websocket', 'ws', 'io', 'connection'],
-            'description': 'WebSocket 与实时通信'
-        },
-        'storage': {
-            'keywords': ['storage', 'file', 'upload', 'download', 'bucket'],
-            'description': '文件存储与上传下载'
-        },
-        'security': {
-            'keywords': ['security', 'encrypt', 'decrypt', 'hash', 'cipher'],
-            'description': '加密解密与安全防护'
-        },
-        'cluster': {
-            'keywords': ['cluster', 'node', 'sync', 'distributed', 'raft', 'consensus'],
-            'description': '集群节点初始化与数据同步'
-        },
-        'comm': {
-            'keywords': ['comm', 'communication', 'interface', 'contract', 'protocol'],
-            'description': '平台上下文与共享接口定义'
-        },
-        'plugin': {
-            'keywords': ['plugin', 'extension', 'module', 'addon'],
-            'description': '插件扩展与模块化加载'
-        },
-        'locale': {
-            'keywords': ['locale', 'i18n', 'international', 'language', 'translation'],
-            'description': '国际化与多语言支持'
-        },
-        'perf': {
-            'keywords': ['perf', 'performance', 'optimize', 'benchmark'],
-            'description': '性能优化与基准测试'
-        },
-        'cli': {
-            'keywords': ['cli', 'command', 'terminal', 'shell', 'console'],
-            'description': '命令行接口与终端工具'
-        },
-        'doc': {
-            'keywords': ['doc', 'readme', 'example', 'sample'],
-            'description': '文档说明与使用示例'
-        },
+    # Fallback：基于目录名和内容的简单匹配
+    # 仅当路径无法推断时才使用
+
+    # 简化的关键词映射
+    keywords_map = {
+        'auth': '认证授权模块',
+        'config': '配置管理',
+        'util': '工具函数',
+        'api': 'API接口',
+        'model': '数据模型',
+        'service': '业务服务',
+        'test': '测试用例',
+        'controller': '控制器',
+        'middleware': '中间件',
+        'client': '客户端',
+        'server': '服务器',
+        'cache': '缓存',
+        'log': '日志',
+        'security': '安全模块',
+        'event': '事件处理',
+        'task': '任务调度',
+        'socket': '通信模块',
+        'storage': '存储模块',
+        'driver': '驱动器',
+        'adapter': '适配器',
     }
 
     # 1. 基于目录名匹配
-    for category, info in category_map.items():
-        if dir_name in info['keywords'] or category in dir_name:
-            return info['description']
+    for key, desc in keywords_map.items():
+        if key in dir_name:
+            return desc
 
     # 2. 基于文件名匹配
     for file_name in file_names:
         file_lower = file_name.lower()
-        for category, info in category_map.items():
-            if any(kw in file_lower for kw in info['keywords']):
-                return info['description']
+        for key, desc in keywords_map.items():
+            if key in file_lower:
+                return desc
 
-    # 3. 基于代码内容匹配
-    for category, info in category_map.items():
-        if any(kw in content_lower for kw in info['keywords']):
-            return info['description']
-
-    # 4. 默认根据目录名生成描述
+    # 3. 默认：使用目录名生成描述
     dir_display = dir_path.name
-    if dir_display in ['src', 'lib', 'core', 'source']:
-        return '核心源代码与业务逻辑'
-    elif dir_display in ['dist', 'build', 'out', 'release']:
-        return '编译输出与构建产物'
-    elif dir_display in ['public', 'static', 'assets']:
-        return '静态资源与公共文件'
-    elif dir_display in ['vendor', 'node_modules', 'third_party']:
-        return '第三方依赖库文件'
-    else:
-        # 使用目录名作为基础，生成描述
-        if len(dir_display) > 10:
-            dir_display = dir_display[:10]
-        return f'{dir_display}相关功能模块'
+    if len(dir_display) > 10:
+        dir_display = dir_display[:10]
+    return f'{dir_display}相关模块'
 
-def propagate_summary(dir_path: Path, child_summaries: List[str]) -> str:
+def propagate_summary(dir_path: Path, child_summaries: List[str], root: Path) -> str:
     """
     合并子目录摘要生成父目录摘要（中文）。
-    
+
     Args:
         dir_path: 父目录路径
         child_summaries: 子目录的摘要列表
+        root: 项目根目录
 
     Returns:
         合并后的摘要（10~50 个中文字符）
@@ -634,9 +832,22 @@ def propagate_summary(dir_path: Path, child_summaries: List[str]) -> str:
     
     # 分析子摘要的共同特征
     unique_summaries = list(set(child_summaries))
-    
+
+    # 特殊处理根目录或顶层目录
+    if dir_path == root or dir_path.name == root.name:
+        # 根目录或顶层目录，基于子目录描述和目录名生成更准确的描述
+        if len(unique_summaries) == 1:
+            # 如果子目录描述是通用的"配置文件或资源目录"，基于目录名生成更好的描述
+            if unique_summaries[0] == '配置文件或资源目录':
+                # 基于目录名生成描述
+                dir_display = dir_name
+                if len(dir_display) > 10:
+                    dir_display = dir_display[:10]
+                return f'{dir_display}项目模块'
+        return unique_summaries[0] if len(unique_summaries) == 1 else f'{dir_name}相关模块'
+
     if len(unique_summaries) == 1:
-        # 所有子目录相同，直接返回
+        # 所有子目录相同，但不直接返回，而是基于目录名生成描述
         summary = unique_summaries[0]
         # 确保长度合适
         if len(summary) > 50:
@@ -758,7 +969,7 @@ def generate_modules_incremental(root: Path | None = None, batch_size: int = 5):
             child_summaries = [dir_summaries.get(child, "") for child in child_dirs if child in dir_summaries]
 
             # 合并摘要
-            summary = propagate_summary(dir_path, child_summaries)
+            summary = propagate_summary(dir_path, child_summaries, root)
             dir_summaries[dir_path] = summary
             updates.append((dir_path, summary))
 
@@ -1053,7 +1264,7 @@ def process_incremental_update(root, target_dirs, existing_descriptions):
                         child_summaries.append(dir_summaries[child])
                     elif full_path in existing_descriptions:
                         child_summaries.append(existing_descriptions[full_path])
-                summary = propagate_summary(dir_path, child_summaries)
+                summary = propagate_summary(dir_path, child_summaries, root)
             dir_summaries[dir_path] = summary
             updates.append((dir_path, summary))
             if len(updates) >= batch_size:

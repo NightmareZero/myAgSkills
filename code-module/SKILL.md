@@ -198,6 +198,30 @@ Fixing missing descriptions...
 - **Validation required**: Always run validation step after generation to ensure all directories have descriptions
 - **No missing descriptions**: Final modules.md must have a valid description for every directory (no `[待分析]` placeholders)
 
+## Analysis Strategy
+
+The script uses a **three-tier analysis strategy** to maximize speed and accuracy:
+
+### Tier 1: Path-based Heuristics (Fastest)
+- Matches directory path patterns (e.g., `/platform/service/manage/hr/` → 人力资源管理模块)
+- Recognizes common project structures
+- No file I/O required
+- Covers ~80-90% of typical directories
+
+### Tier 2: Directory Name Patterns
+- Matches naming conventions (e.g., `service_*.go`, `*_controller.go`, `api_*.go`)
+- Recognizes file-level patterns
+- No file content reading
+- Covers additional ~5-10% of directories
+
+### Tier 3: Code Content Analysis (Fallback)
+- Only triggered when **`NEED_CODE_ANALYSIS`** is returned from Tier 1/2
+- Reads first 5 code files per directory
+- Analyzes imports, package names, and keywords
+- Covers remaining edge cases
+
+**Performance**: Most projects are analyzed using Tier 1/2 only (0-10 files read), enabling near-instant analysis for large codebases.
+
 ## When to Use
 
 **This skill requires EXPLICIT user invocation.**
