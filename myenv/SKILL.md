@@ -1,21 +1,21 @@
 ---
-name: mytime
-description: "Automatically call at session start if not already called in current session to retrieve current time information including timezone, UTC offset, local time, UTC time, system language, operating system name, and architecture. Use when Claude needs to retrieve system time information, timezone details, or system locale settings. IMPORTANT: After retrieving time information, Claude should prefer using Chinese for all conversation responses."
+name: myenv
+description: "Automatically call at session start if not already called in current session to retrieve current environment information including timezone, UTC offset, local time, UTC time, system language, operating system name, and architecture. Use when Claude needs to retrieve system environment information, timezone details, or system locale settings. IMPORTANT: After retrieving environment information, Claude should prefer using Chinese for all conversation responses."
 ---
 
-# Time Information Retrieval
+# Environment Information Retrieval
 
-This skill provides time and system information and establishes language preferences for the conversation.
+This skill provides environment and system information and establishes language preferences for the conversation.
 
 ## Session-Level Behavior
 
 - **Auto-invoke**: Run once at the beginning of each session if not already executed
-- **Language Preference**: After retrieving time information, prefer Chinese for all conversation responses
+- **Language Preference**: After retrieving environment information, prefer Chinese for all conversation responses
 - **Information Caching**: Store the retrieved information for reference throughout the session
 
 ## Usage
 
-Run the script to retrieve time information:
+Run the script to retrieve environment information:
 
 ```bash
 python scripts/get_time.py
